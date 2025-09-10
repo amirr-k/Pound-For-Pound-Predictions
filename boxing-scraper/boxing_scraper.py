@@ -1,6 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 import time
+from urllib.parse import urljoin
+import re
 
 
 def fetchWikipediaPage(url):
@@ -19,6 +21,31 @@ def fetchWikipediaPage(url):
     except Exception as e:
         print(f"Error fetching Wikipedia page: {e}")
         return None
+
+#  Extract fighter Wikipedia links from a seed page
+def extractFighterLinks(seedUrl):
+    soup = fetchWikipediaPage(seedUrl)
+    if not soup:
+        return []
+    
+    
+    # Avoid duplicate links
+    fighterLinks = set()
+    baseUrl = "https://en.wikipedia.org"
+    # Extract the links from the page
+    links = soup.find_all('a', href=True)
+    for link in links:
+        href = link.get('href')
+        if not href or not href.startswith('/wiki/'):
+            continue
+        #Extract full url
+        fullUrl = urljoin(baseUrl, href)
+        if isLikelyFighterPage(fullUrl):
+            fighterLinks.add(fullUrl)
+    # Keep now for debugging
+    print(f"Found {len(fighterLinks)} fighter links")
+    return list(fighterLinks)
+
 
 if __name__ == "__main__":
     # Test with Mike Tyson the GOAT frfrfr
