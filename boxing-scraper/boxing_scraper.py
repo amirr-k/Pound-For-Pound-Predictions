@@ -40,12 +40,28 @@ def extractFighterLinks(seedUrl):
             continue
         #Extract full url
         fullUrl = urljoin(baseUrl, href)
-        if isLikelyFighterPage(fullUrl):
+        if isLikelyFighterPage(href, link.get_text()):
             fighterLinks.add(fullUrl)
     # Keep now for debugging
     print(f"Found {len(fighterLinks)} fighter links")
     return list(fighterLinks)
 
+def isLikelyFighterPage(href, linkText):
+    # Check if the link is a likely fighter page
+    # May need work but should be fine for now
+    skipPatterns = [
+        'Category:', 'Template:', 'File:', 'Help:', 'Special:',
+        'disambiguation', 'List_of', 'Boxing', 'Championship', 
+        'Division', 'Weight', 'Title', 'Organization'
+    ]
+    for pattern in skipPatterns:
+        if pattern in href:
+            return False
+    if linkText and len(linkText.split()) >= 2:
+        # Skip boxing related terms that are kinda obvious
+        if not any(word in linkText.lower() for word in ['boxing', 'championship', 'division', 'weight']):
+            return True 
+    return False
 
 if __name__ == "__main__":
     # Test with Mike Tyson the GOAT frfrfr
