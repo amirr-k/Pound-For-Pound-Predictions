@@ -75,3 +75,26 @@ if __name__ == "__main__":
             print("Fetched page but couldn't find the title")
     else:
         print("Failed to fetch Wikipedia page")
+
+    # Test extract fighter links from a champions page
+    print("---------------------------------------")
+    print("Testing Fighter Link Extraction")
+    print("---------------------------------------")
+    seedUrl = "https://en.wikipedia.org/wiki/List_of_current_world_boxing_champions"
+    fighterLinks = extractFighterLinks(seedUrl)
+    
+    # Show first 5 links we found
+    print(f"\nFirst 5 fighter links found:")
+    for i, link in enumerate(fighterLinks[:5]):
+        print(f"{i+1}. {link}")
+    
+    # Test one of the fighter pages
+    if fighterLinks:
+        print(f"\nTesting Individual Fighter Page")
+        print("---------------------------------------")
+        testFighterUrl = fighterLinks[0]
+        soup = fetchWikipediaPage(testFighterUrl)
+        if soup:
+            title = soup.find('h1', class_='firstHeading')
+            if title:
+                print(f"Successfully fetched fighter page: {title.get_text()}")
