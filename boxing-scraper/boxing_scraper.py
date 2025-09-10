@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import time
 from urllib.parse import urljoin
 import re
+import pandas as pd
 
 
 def fetchWikipediaPage(url):
@@ -62,6 +63,30 @@ def isLikelyFighterPage(href, linkText):
         if not any(word in linkText.lower() for word in ['boxing', 'championship', 'division', 'weight']):
             return True 
     return False
+
+def extractRecord(fighterUrl):
+    soup = fetchWikipediaPage(fighterUrl)
+    if not soup:
+        return None
+    titleElement = soup.find('h1', class_='firstHeading')
+    if not titleElement:
+        return None
+    fighterName = titleElement.get_text()
+    recordTable = findRecordTable(soup)
+    if not recordTable:
+        print(f"No record table found for {fighterName}")
+        return None
+    boutRecords = parseRecordTable(recordTable, fighterName)
+    if boutRecords:
+        print(f"Successfully extracted record for {fighterName}")
+        return{
+            'fighterName': fighterName,
+            'wikipediaUrl': fighterUrl,
+            'boutRecords': boutRecords
+        }
+    return None
+
+
 
 if __name__ == "__main__":
     # Test with Mike Tyson the GOAT frfrfr
