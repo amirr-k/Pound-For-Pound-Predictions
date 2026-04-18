@@ -1,11 +1,3 @@
-"""SQLite schema and persistence helpers for onboarder.
-
-This module keeps all database concerns in one place:
-- opening/configuring SQLite connections
-- creating tables and indexes
-- small write/read helpers used by index and query commands
-"""
-
 from __future__ import annotations
 
 import sqlite3
@@ -15,11 +7,15 @@ from typing import Iterable, Mapping
 
 
 def connect(db_path: str | Path) -> sqlite3.Connection:
-    """Open a SQLite connection configured for this CLI app."""
+    # open sqlite db and always return rows like dicts (sqlite3.Row)
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
 
-    # Pragmas chosen for local CLI performance + durability balance.
+    # pragmas are tuned for local cli speed without going full unsafe mode
+    # foreign keys matter because symbols.file_id should die with files.id
+    # wal helps read/query while writes happen during indexing
+    # normal sync is a pretty normal tradeoff for local tools
+    # temp in memory avoids some disk churn on heavier sql ops
     conn.execute("PRAGMA foreign_keys = ON;")
     conn.execute("PRAGMA journal_mode = WAL;")
     conn.execute("PRAGMA synchronous = NORMAL;")
@@ -28,7 +24,7 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
 
 
 def init_schema(conn: sqlite3.Connection) -> None:
-    """Create required tables and indexes if they do not exist."""
+    # one place for schema so index/query modules stay tiny and focused
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS files (
@@ -66,7 +62,8 @@ def upsert_file(
     mtime_ns: int,
     size_bytes: int,
 ) -> int:
-    """Insert or update a file row, then return its id."""
+    # file row is our incremental indexing anchor
+    # same path -> update hash/stats, new path -> insert row
     now_ts = int(time.time())
     conn.execute(
         """
@@ -82,12 +79,13 @@ def upsert_file(
     )
     row = conn.execute("SELECT id FROM files WHERE path = ?", (path,)).fetchone()
     if row is None:
+        # shouldn't happen unless something weird interrupted writes
         raise RuntimeError(f"Failed to load file id for path: {path}")
     return int(row["id"])
 
 
 def get_file_by_path(conn: sqlite3.Connection, path: str) -> sqlite3.Row | None:
-    """Return file row for a path, or None if it is not indexed yet."""
+    # tiny lookup used by index step to decide skip vs reparse
     return conn.execute(
         """
         SELECT id, path, content_hash, mtime_ns, size_bytes, last_indexed_at
@@ -104,9 +102,11 @@ def replace_symbols_for_file(
     file_id: int,
     symbols: Iterable[Mapping[str, object]],
 ) -> int:
-    """Replace all symbols for a file and return inserted row count."""
+    # for changed files we blow away old symbol rows first
+    # then insert a fresh snapshot from current ast parse
     conn.execute("DELETE FROM symbols WHERE file_id = ?", (file_id,))
 
+    # normalize everything to db-safe primitive types
     payload = [
         (
             file_id,
@@ -120,6 +120,7 @@ def replace_symbols_for_file(
         for sym in symbols
     ]
     if not payload:
+        # valid case: file changed but ended up with no extractable symbols
         return 0
 
     conn.executemany(
@@ -136,12 +137,15 @@ def replace_symbols_for_file(
 def search_symbols(
     conn: sqlite3.Connection, text: str, *, limit: int = 20
 ) -> list[sqlite3.Row]:
-    """Simple keyword search for v1 over name/qualname/source."""
+    # v1 search is intentionally simple: basic like matching + lightweight score
+    # no fts, no embedding, no fancy ranking yet
     q = text.strip()
     if not q:
         return []
 
     like = f"%{q}%"
+    # score favors exact names first, then partial names, then raw source hits
+    # this keeps obvious symbol matches near top with almost no extra logic
     return list(
         conn.execute(
             """
