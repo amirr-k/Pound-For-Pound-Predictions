@@ -4,6 +4,8 @@
 # Cache directories
 **/cache/
 
-# Notes
+# CMake / FetchContent (upstream sources land here; keep out of git)
+build/
+
 DEV_NOTES.md
 
