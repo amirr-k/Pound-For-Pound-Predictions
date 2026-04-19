@@ -78,7 +78,7 @@ endif()
 add_library(codewatch_xxhash STATIC "${CODEWATCH_XXHASH_ROOT}/xxhash.c")
 target_include_directories(codewatch_xxhash PUBLIC "${CODEWATCH_XXHASH_ROOT}")
 
-add_executable(codewatch main.cpp)
+add_executable(codewatch main.cpp database.cpp)
 
 if(TARGET SQLite3::SQLite3)
   target_link_libraries(codewatch PRIVATE SQLite3::SQLite3)
