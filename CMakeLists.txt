@@ -78,16 +78,7 @@ endif()
 add_library(codewatch_xxhash STATIC "${CODEWATCH_XXHASH_ROOT}/xxhash.c")
 target_include_directories(codewatch_xxhash PUBLIC "${CODEWATCH_XXHASH_ROOT}")
 
-# No committed C++ sources yet: generate a trivial TU in the build tree so the
-# `codewatch` executable target exists and links against the declared deps.
-set(CODEWATCH_GENERATED_STUB "${CMAKE_CURRENT_BINARY_DIR}/codewatch_generated_stub.cpp")
-file(
-  WRITE "${CODEWATCH_GENERATED_STUB}"
-  "#include <cstdlib>\n"
-  "int main() { return EXIT_SUCCESS; }\n"
-)
-
-add_executable(codewatch "${CODEWATCH_GENERATED_STUB}")
+add_executable(codewatch main.cpp)
 
 if(TARGET SQLite3::SQLite3)
   target_link_libraries(codewatch PRIVATE SQLite3::SQLite3)
